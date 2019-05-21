@@ -1,0 +1,69 @@
+hystrix.command.fallbackcmd.execution.isolation.thread.timeoutInMilliseconds: 2000
+
+spring:
+  application:
+    name: api-gateway
+
+server:
+  port: 8887
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8888/eureka
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    preferIpAddress: true
+
+gateway-services:
+  ribbon:
+    eureka:
+      enabled: true
+    listOfServers: localhost:8070,localhost:8071,localhost:8090,localhost:8091
+
+zuul:
+  routes:
+    movie-store:
+      path: /mapi/**
+      serviceId: movie-store
+    book-store:
+      path: /bapi/**
+      serviceId: book-store
+  ratelimit:
+    enabled: true
+    repository: REDIS
+    add-response-headers: true
+    default-policy-list: #optional - will apply unless specific policy exists
+      - limit: 10 #optional - request number limit per refresh interval window
+        quota: 1000 #optional - request time limit per refresh interval window (in seconds)
+        refresh-interval: 60 #default value (in seconds)
+        type: #optional
+          - user=anonymous
+          - origin
+          - url
+          - httpmethod=get #case insensitive
+    policy-list:
+      movie-store:
+        - limit: 1
+          refresh-interval: 1
+          type:
+            - user=anonymous
+            - origin
+            - url=/mapi #url prefix
+            - httpmethod=get #case insensitive
+      book-store:
+        - limit: 10
+          refresh-interval: 1
+          type:
+            - user=anonymous
+            - origin
+            - url=/bapi #url prefix
+            - httpmethod=get #case insensitive
+    strip-prefix: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: hystrix.stream
